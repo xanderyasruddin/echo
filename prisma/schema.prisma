@@ -1,0 +1,146 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                   String         @id @default(cuid())
+  email                String         @unique
+  username             String         @unique
+  clerkId              String         @unique
+  name                 String?
+  bio                  String?
+  image                String?
+  location             String?
+  website              String?
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+  comments             Comment[]
+  following            Follows[]      @relation("follower")
+  followers            Follows[]      @relation("following")
+  likes                Like[]
+  saves                Save[]
+  notificationsCreated Notification[] @relation("notificationCreator")
+  notifications        Notification[] @relation("userNotifications")
+  posts                Post[]
+  taggedPosts          TaggedUser[]
+
+}
+
+model Post {
+  id            String         @id @default(cuid())
+  authorId      String
+  locationId    String
+  rating        Int?
+  content       String?
+  image         String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  comments      Comment[]
+  likes         Like[]
+  saves         Save[]
+  notifications Notification[]
+  author        User           @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  location      Location       @relation(fields: [locationId], references: [id])
+  taggedUsers   TaggedUser[]
+}
+
+model Location {
+  id              String @id @default(cuid())
+  placeId         String @unique
+  name            String
+  address         String
+  latitude        Float
+  longitude       Float
+  sumOfRatings    Int @default(0)
+  numberOfRatings Int @default(0)
+  types           String[]
+  posts           Post[]
+}
+
+model TaggedUser {
+  id     String @id @default(cuid())
+  postId String
+  userId String
+  post   Post   @relation(fields: [postId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@unique([postId, userId])
+}
+
+model Comment {
+  id            String         @id @default(cuid())
+  content       String
+  authorId      String
+  postId        String
+  createdAt     DateTime       @default(now())
+  author        User           @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  post          Post           @relation(fields: [postId], references: [id], onDelete: Cascade)
+  notifications Notification[]
+
+  @@index([authorId, postId])
+}
+
+model Like {
+  id        String   @id @default(cuid())
+  postId    String
+  userId    String
+  createdAt DateTime @default(now())
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@index([userId, postId])
+}
+
+model Save {
+  id        String   @id @default(cuid())
+  postId    String
+  userId    String
+  createdAt DateTime @default(now())
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, postId])
+  @@index([userId, postId])
+}
+
+model Follows {
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+  follower    User     @relation("follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User     @relation("following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@id([followerId, followingId])
+  @@index([followerId, followingId])
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  creatorId String
+  type      NotificationType
+  read      Boolean          @default(false)
+  postId    String?
+  commentId String?
+  createdAt DateTime         @default(now())
+  comment   Comment?         @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  creator   User             @relation("notificationCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  post      Post?            @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User             @relation("userNotifications", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+enum NotificationType {
+  LIKE
+  SAVE
+  COMMENT
+  FOLLOW
+  TAGGED
+}
